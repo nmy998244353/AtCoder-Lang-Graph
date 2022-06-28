@@ -1,0 +1,156 @@
+<html>
+
+<head>
+    <title>
+        LanguageGraph
+    </title>
+    <style>
+        ul {
+            list-style: none;
+            width: 500px;
+        }
+    </style>
+</head>
+
+<body>
+    <p id="info">
+        作った人
+        <a href="https://twitter.com/nmy998244353">@nmy998244353</a>
+    </p>
+    <h1>AtCoder言語別ACグラフ</h1>
+
+    ユーザー名を入力してsubmitを押すと言語別のグラフ表示されます
+    <form id="chatbox" class="graphs">
+        <input id="user_id">
+        <input type="submit" value="submit" />
+    </form>
+    <ul id="messages"></ul>
+
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.bundle.js"></script>
+    <script>
+        var socket = null;
+        var msgBox = $("#user_id");
+        var messages = $("#messages");
+        var init = null
+        var lang_list = []
+        $("#chatbox").submit(function () {
+            $("#messages").empty()
+            lang_list = []
+            $("#messages").append($("<h3>").text(msgBox.val()))
+            $("#messages").append($(`<li id ="loading">`)).text("Now Loading")
+            if (!msgBox.val()) return false;
+            if (!socket) {
+                alert("エラー： WebSocket接続が行われていません")
+                return false;
+            }
+            socket.send(msgBox.val());
+            return false;
+        });
+        if (!window["WebSocket"]) {
+            alert("エラー：　WebSocketに対応していないブラウザです");
+        } else {
+            socket = new WebSocket("wss://{{.Host}}/room");
+            socket.onclose = function () {
+                alert("接続が終了しました");
+            }
+            socket.onmessage = function (e) {
+                $("#messages").empty()
+                if (e.data == "error") {
+                    $("#messages").append($("<h3>").text("User Not Found!"))
+                } else {
+                    var jsn = JSON.parse(e.data)
+                    console.log(jsn)
+                    Object.keys(jsn).forEach(function (lang) {
+                        lang_list.push(lang)
+                        messages.append($(`<li id ="${lang}_li">`).text(lang))
+                        messages.append($(`<canvas id="${lang}"></canvas>`))
+                    });
+                    var mn = 1000000000
+                    var start = 2*(2010-1970)*365;
+                    Object.keys(jsn).forEach(function (lang) {
+                        var str = String(jsn[lang])
+                        var strlen = str.length
+                        var tmp = ""
+                        for (let i = start; i < str.length; i++) {
+                            if (str[i] == '[' || str[i] == ']') {
+                                continue
+                            }
+                            if (str[i] != ',') {
+                                tmp += str[i]
+                            } else {
+                                var num = Number(tmp)
+                                if (num > 0) {
+                                    if (mn > i) {
+                                        mn = i - 1
+                                    }
+                                    break
+                                }
+                                tmp = ""
+                            }
+                        }
+                    })
+                    Object.keys(jsn).forEach(function (lang) {
+                        $(document).ready(function () {
+                            var str = String(jsn[lang])
+                            var strlen = str.length
+                            var tmp = ""
+                            var time = []
+                            var AC = []
+                            var notzero = false
+                            cnt = 0
+                            var uni_t = new Date((cnt)*60*60*24*1000)
+                            for (let i = 0; i < strlen; i++) {
+                                var now = new Date();
+                                if (uni_t > now) break;
+                                if (str[i] == '[' || str[i] == ']') {
+                                    continue
+                                }
+                                if (str[i] != ',') {
+                                    tmp += str[i]
+                                } else {
+                                    cnt++
+                                    uni_t = new Date((cnt-1)*60*60*24*1000)
+                                    var num = Number(tmp)
+                                    if (i >= mn) {
+                                        AC.push(num)
+                                        time.push(String(uni_t.getFullYear()) + "/" +
+                                            +String(Number(uni_t.getMonth()) + 1) + "/"
+                                            + String(uni_t.getDate()))
+                                    }
+                                    tmp = ""
+                                }
+                            }
+                            for (let i = 0; i < AC.length - 1; i++) {
+                                AC[i + 1] += AC[i]
+                            }
+                            var ctx = document.getElementById(lang)
+                            var langchart = new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: time,
+                                    datasets: [
+                                        {
+                                            label: lang,
+                                            data: AC,
+                                            borderColor: "rgba(0,0,255,1)",
+                                            backgroundColor: "rgba(0,0,0,0)",
+                                        }
+                                    ],
+                                },
+                                options: {
+                                    title: {
+                                        display: true,
+                                        text: `${lang}`
+                                    }
+                                }
+                            })
+                        });
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
